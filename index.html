@@ -204,7 +204,7 @@ function pinDraw(){$('#dots').textContent='●'.repeat(PIN.length)+'○'.repeat(
 function openPin(){PIN='';$('#pm').textContent='';pinDraw();$('#pin').showModal()}
 function pinKey(d){$('#pm').textContent='';if(d=='c')PIN='';else if(d=='b')PIN=PIN.slice(0,-1);else if(PIN.length<4)PIN+=d;pinDraw();
  if(PIN.length==4){const l=[1,2,3].find(l=>AUTH.h[l-1]===hp(PIN,l));
-  if(l){S.lvl=l;S.edit=true;last=Date.now();$('#pin').close();render()}else{$('#pm').textContent='Senha incorreta';PIN='';setTimeout(pinDraw,350)}}}
+  if(l){S.lvl=l;S.edit=true;last=Date.now();$('#pin').close();render();refreshMaster(true)}else{$('#pm').textContent='Senha incorreta';PIN='';setTimeout(pinDraw,350)}}}
 function lock(){S.lvl=0;S.edit=false;if(S.tab=='hist')S.tab='maq';['dg','pw','pin','gh'].forEach(i=>{const d=$('#'+i);if(d.open)d.close()});render()}
 $('#kp').innerHTML=['1','2','3','4','5','6','7','8','9','c','0','b'].map(d=>`<button class="btn" data-a="k" data-d="${d}" style="height:56px;font-size:20px">${d=='c'?'Limpar':d=='b'?'⌫':d}</button>`).join('');
 ['pointerdown','keydown','input','change'].forEach(e=>document.addEventListener(e,()=>{last=Date.now()},true));
@@ -222,9 +222,12 @@ const ghReq=(m,u,b)=>fetch(ghUrl(u),{method:m,headers:{Authorization:'Bearer '+G
 function say(t){const m=$('#ghm');if(m)m.textContent=t;S.note=t;banner();setTimeout(()=>{if(S.note==t){S.note='';banner()}},8000)}
 function ghGuess(){const h=location.hostname;if(h.endsWith('.github.io')){const o=h.split('.')[0],r=location.pathname.split('/')[1];return o+'/'+(r||h)}return''}
 function ghRead(){GH={repo:$('#ghr').value.trim(),branch:$('#ghb').value.trim()||'main',path:$('#ghp').value.trim()||'data.json',token:$('#ght').value.trim()};try{localStorage.setItem('ele_gh',JSON.stringify(GH))}catch(e){}}
-async function pull(){try{const r=await fetch('./data.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;const d=await r.json();return d&&d.motores&&d.params&&d.cabos?d:null}catch(e){return null}}
+async function pull(){try{const r=await fetch('./data.json?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout?AbortSignal.timeout(6000):undefined});if(!r.ok)return null;const d=await r.json();return d&&d.motores&&d.params&&d.cabos?d:null}catch(e){return null}}
 function adopt(d){const au=DB.aud||[];DB=JSON.parse(JSON.stringify(d));DB.aud=au;DB.log=[];DB.redo=[];DB.base=d.rev||0;DB.dirty=false;PUB=d;S.conflict=null;init();aud('Carregou a versão publicada (rev '+DB.base+')');persist()}
-async function syncStart(){const d=await pull();if(!d)return;PUB=d;if((d.rev||0)>(DB.base||0)){if(DB.dirty)S.conflict=d;else adopt(d)}render()}
+async function refreshMaster(onlyNewer){const d=await pull();if(!d)return;PUB=d;if(S.booted&&S.lvl>0&&!onlyNewer)return;if(!onlyNewer||(d.rev||0)>(DB.base||0)){adopt(d);render()}}
+async function syncStart(){await refreshMaster(false)}
+setInterval(()=>{if(S.lvl==0)refreshMaster(true)},300000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.lvl==0)refreshMaster(true)});
 async function publish(force){
  if(S.lvl<3)return;if(!GH.repo||!GH.token){say('Preencha repositório e token.');return}
  say('Publicando…');
@@ -238,7 +241,7 @@ async function publish(force){
  }catch(e){say('Falha ao publicar: '+e.message+'. Confira repositório, ramo, arquivo e token.')}}
 function banner(){let h='';
  if(S.lvl==3&&S.conflict)h+=`<div class="bn warn">Existe uma versão publicada mais nova (rev ${S.conflict.rev||'?'}) e este tablet tem alterações locais não publicadas. <button class="btn s" data-a="useRemote">Usar a publicada</button><button class="btn s d" data-a="forcePub">Publicar as minhas por cima</button></div>`;
- else if(S.lvl==3&&DB.dirty&&GH.token)h+=`<div class="bn">Alterações locais ainda não publicadas. <button class="btn s p" data-a="pubNow">Publicar</button></div>`;
+ else if(S.lvl>=1&&DB.dirty)h+=`<div class="bn">Ajustes temporários neste tablet: voltam ao padrão (versão mestra) ao recarregar.${S.lvl==3&&GH.token?' <button class="btn s p" data-a="pubNow">Publicar como padrão</button>':''}</div>`;
  if(S.lvl==3&&S.note)h+=`<div class="bn mu">${esc(S.note)}</div>`;
  const b=$('#bn');if(b)b.innerHTML=h}
 
@@ -314,5 +317,6 @@ document.addEventListener('change',e=>{
  save();if(re)render()});
 $('#q').addEventListener('input',e=>{S.q=e.target.value;render()});
 document.addEventListener('keydown',e=>{if(e.key=='/'&&document.activeElement.tagName!='INPUT'&&document.activeElement.tagName!='TEXTAREA'){e.preventDefault();$('#q').focus()}});
-init();render();syncStart();
+init();$('#v').innerHTML='<div class="empty">Carregando a versão mestra…</div>';
+Promise.race([refreshMaster(false),new Promise(r=>setTimeout(r,3500))]).then(()=>{S.booted=true;render()});
 </script></body></html>
