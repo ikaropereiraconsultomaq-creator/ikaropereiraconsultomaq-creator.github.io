@@ -33,6 +33,8 @@ td input,td select{width:100%;min-width:70px;padding:5px 7px;border:1px solid va
 input.gr{-webkit-appearance:none;appearance:none;height:12px;border-radius:6px;padding:0;border:.5px solid var(--bd)}input.gr::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #444}input.gr::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #444}
 body.lv0 #bkb,body.lv1 #bkb,body.lv2 #bkb,body.lv1 [data-a^="del"],body:not(.lv3) .adm,body:not(.lv3) #pub{display:none}
 #bn:empty{display:none}.bn{padding:8px 14px;background:var(--ac2);border-bottom:1px solid var(--bd);display:flex;gap:8px;align-items:center;flex-wrap:wrap}.bn.warn{border-left:4px solid var(--bad)}
+.fd{border:1px solid var(--bd);border-radius:10px;padding:6px 10px;margin:6px 0;background:var(--bg)}.fd summary{cursor:pointer;padding:4px 0}
+@media print{header,nav,#bn,footer,.noprint{display:none!important}main{padding:0;max-width:none}body{background:#fff;color:#000}.fd{break-inside:avoid}}
 .empty{padding:26px;text-align:center;color:var(--mu)}.list button.li{display:block;width:100%;text-align:left;border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer}.list button.li.on{border-color:var(--ac);background:var(--ac2)}
 dialog{border:1px solid var(--bd);border-radius:14px;background:var(--sf);color:var(--tx);width:min(640px,94vw)}dialog textarea{width:100%;height:230px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;font:12px monospace}
 footer{padding:14px;text-align:center;color:var(--mu);font-size:12px}
@@ -63,7 +65,7 @@ if((DB.v||1)<2){
 if((DB.v||1)<3){DB.cabos=JSON.parse(JSON.stringify(ORIG.cabos));DB.v=3;try{localStorage.setItem('ele_db',JSON.stringify(DB))}catch(e){}}
 const persist=()=>{try{localStorage.setItem('ele_db',JSON.stringify(DB));return 1}catch(e){return 0}};
 const save=()=>{if(track())DB.dirty=true;let n=0;while(!persist()&&DB.log.length>5&&n++<8)DB.log.splice(0,Math.ceil(DB.log.length/3))};
-const S={lvl:0,tab:'maq',q:'',edit:false,fam:'',fase:'',sel:null,pb:null,br:{},kit:0};
+const S={lvl:0,fm:'',fb:'',tab:'maq',q:'',edit:false,fam:'',fase:'',sel:null,pb:null,br:{},kit:0};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const nz=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -112,7 +114,7 @@ function vPar(){
 function dMot(m){
  const e=S.edit,same=DB.motores.filter(x=>x.n!=m.n&&norm(x.desc)==norm(m.desc)&&norm(x.redutor)==norm(m.redutor));
  const b=blkT(m.param);const kits=DB.cabos.map((k,i)=>[k,i]).filter(([k])=>nz(k.kit).includes(nz(m.familia))&&(!/\(MAX\)$/.test(k.kit)||/MAX/i.test(m.maquina))&&(!/\(TURBO\)$/.test(k.kit)||!/MAX/i.test(m.maquina)));
- let h=`<div class="card"><h3>${esc(m.maquina)} <span class="mu">· ${esc(m.nome)}</span></h3>`;
+ let h=`<div class="card"><h3>${esc(m.maquina)} <span class="mu">· ${esc(m.nome)}</span> <span class="chip" data-a="goF" data-m="${esc(m.maquina)}">Abrir ficha da máquina</span></h3>`;
  if(e){h+=`<datalist id="dl-maq">${[...new Set(DB.motores.map(x=>x.maquina))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist><div class="f">${[['maquina','Máquina'],['nome','Nome motor'],['desc','Descrição'],['redutor','Redutor'],['cabo','Cabo']].map(([k,l])=>`<label>${l}</label>${k=='maquina'?inp('m|'+m.n+'|'+k,m[k]).replace('<input','<input list="dl-maq"'):inp('m|'+m.n+'|'+k,m[k])}`).join('')}<label>Inversor</label><select data-e="m|${m.n}|param"><option value="">— nenhum —</option>${DB.params.map(x=>`<option ${x.title==m.param?'selected':''}>${esc(x.title)}</option>`).join('')}</select></div><div class="bar" style="margin-top:10px"><button class="btn s" data-a="cloneM" data-n="${m.n}">Clonar motor</button><span class="mu">Posição na lista:</span>${arr('m',(S.vis||[]).indexOf(m.n),(S.vis||[]).length)}<button class="btn s d" data-a="delM" data-n="${m.n}">Excluir motor</button></div>`}
  else h+=`<div class="f" style="grid-template-columns:110px 1fr">${[['Descrição',m.desc],['Fase',m.fase],['Potência',m.cv?m.cv+' cv':'—'],['Redutor',m.redutor],['Cabo',m.cabo]].map(([l,v])=>`<label>${l}</label><div>${esc(v)||'—'}</div>`).join('')}</div>`;
  h+='</div>';
@@ -212,6 +214,33 @@ setInterval(()=>{if(S.lvl&&Date.now()-last>IDLE)lock()},5000);
 document.addEventListener('keydown',e=>{if($('#pin').open){if(/^\d$/.test(e.key))pinKey(e.key);else if(e.key=='Backspace')pinKey('b');return}
  if((e.ctrlKey||e.metaKey)&&e.key=='z'&&S.lvl==3&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();undo(1)}});
 
+/* ---------- Ficha da máquina ---------- */
+const BRS=['AGEON','MOTRONICS','DELTA','POLICOMP'];
+function gaps(b){const have=new Set(b.sections.map(s=>s.brand));const miss=BRS.filter(x=>!have.has(x)&&!(x=='AGEON'&&have.has('AGEON YF50')));let nul=0;b.sections.forEach(s=>s.rows.forEach(r=>{if(String(r[2]==null?'':r[2]).trim()==='')nul++}));return{miss,nul}}
+function kitsFor(m){return DB.cabos.map((k,i)=>[k,i]).filter(([k])=>nz(k.kit).includes(nz(m.familia))&&(!/\(MAX\)$/.test(k.kit)||/MAX/i.test(m.maquina))&&(!/\(TURBO\)$/.test(k.kit)||!/MAX/i.test(m.maquina)))}
+function vFic(){
+ const all=[...new Set(DB.motores.map(m=>m.maquina))],opts=all.filter(x=>hit(S.q,x));
+ if(opts.length&&!opts.includes(S.fm))S.fm=opts[0];
+ const M=DB.motores.filter(m=>m.maquina==S.fm),brands=[...new Set(DB.params.flatMap(b=>b.sections.map(s=>s.brand)))];
+ let h=`<div class="bar noprint"><select data-f="fm" style="max-width:100%">${(opts.length?opts:all).map(x=>`<option value="${esc(x)}"${x==S.fm?' selected':''}>${esc(x)}</option>`).join('')}</select><span class="mu">${opts.length} máquina(s)${S.q.trim()?' na busca':''}</span><button class="btn" data-a="prn" style="margin-left:auto">Imprimir</button></div>
+ <div class="bar noprint"><span class="chip ${!S.fb?'on':''}" data-a="fb" data-b="">Todas as marcas</span>${brands.map(b=>`<span class="chip ${S.fb==b?'on':''}" data-a="fb" data-b="${esc(b)}">${esc(b)}</span>`).join('')}</div>`;
+ if(!M.length)return h+'<div class="empty">Nenhuma máquina encontrada.</div>';
+ h+=`<div class="card"><h3 style="font-size:16px">${esc(S.fm)}</h3><div class="mu">${M.length} motor(es): ${M.map(m=>esc(m.nome)).join(' · ')}</div></div>`;
+ M.forEach(m=>{const b=blkT(m.param),g=b?gaps(b):null;
+  h+=`<div class="card"><h3>${esc(m.nome)} <span class="tag">${esc(m.fase)}</span> ${m.cv?`<span class="tag">${esc(m.cv)} cv</span>`:''}</h3><div class="f" style="grid-template-columns:110px 1fr;margin-bottom:8px"><label>Descrição</label><div>${esc(m.desc)||'—'}</div><label>Redutor</label><div>${esc(m.redutor)||'—'}</div><label>Cabo</label><div>${esc(m.cabo)||'—'}</div></div>`;
+  if(!b)h+=`<div class="mu">${m.fase=='Trifásico'?'<span class="tag o">sem bloco de parâmetros</span>':'Motor monofásico: sem inversor.'}</div>`;
+  else{
+   h+=`<div style="margin:6px 0"><b>${esc(b.title)}</b> <span class="mu">${esc(b.motor||'')}</span>${g.miss.length?` <span class="tag o">sem: ${g.miss.join(', ')}</span>`:''}${g.nul?` <span class="tag o">${g.nul} valor(es) em branco</span>`:''}</div>`;
+   b.sections.filter(s=>!S.fb||s.brand==S.fb).forEach(s=>{h+=`<details class="fd"${S.fb||s.brand=='SCHMERSAL'?' open':''}><summary><b>${esc(s.brand)}</b> <span class="mu">${s.rows.length} parâmetros</span></summary><div class="tw"><table><tr><th>Parâm.</th><th>Função</th><th>Valor</th></tr>${s.rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td class="v">${String(r[2]==null?'':r[2]).trim()===''?'<span class="tag o">—</span>':esc(r[2])}</td></tr>`).join('')}</table></div>${s.notes.length?`<div class="mu">${s.notes.map(esc).join('<br>')}</div>`:''}</details>`});
+   if(S.fb&&!b.sections.some(s=>s.brand==S.fb))h+=`<div class="mu">Sem parâmetros da marca ${esc(S.fb)} neste bloco.</div>`}
+  h+='</div>'});
+ const kk=new Map();M.forEach(m=>kitsFor(m).forEach(([k,i])=>kk.set(i,k)));
+ h+='<div class="card"><h3>Kits de cabos</h3>';
+ if(!kk.size)h+='<div class="mu"><span class="tag o">nenhum kit cadastrado para esta família</span></div>';
+ kk.forEach((k,i)=>{const tot=k.rows.reduce((a,r)=>a+(+r.qnt||0)*(+r.medida||0)/1000,0),sm=k.rows.filter(r=>!(+r.medida)).length;
+  h+=`<details class="fd"><summary><b>${esc(k.kit)}</b> <span class="mu">${k.rows.length} cabos · ${tot.toFixed(2).replace('.',',')} m${sm?` · ${sm} sem medida`:''}</span></summary><div class="tw"><table><tr><th>Cor</th><th>Qtd</th><th>Cabo</th><th>Medida (mm)</th></tr>${k.rows.map(r=>`<tr><td>${pill(r.cor,r)}</td><td>${esc(r.qnt)}</td><td>${r.cabo?esc(r.cabo):'<span class="mu">—</span>'}</td><td class="v">${+r.medida?esc(r.medida):'<span class="mu">sem medida</span>'}</td></tr>`).join('')}</table></div><span class="chip noprint" data-a="goK" data-i="${i}">Abrir na aba Cabos</span></details>`});
+ return h+'</div>'}
+
 /* ---------- Publicação no GitHub ---------- */
 let GH=null;try{GH=JSON.parse(localStorage.getItem('ele_gh')||'null')}catch(e){}
 GH=Object.assign({repo:'',branch:'main',path:'data.json',token:''},GH||{});
@@ -250,10 +279,10 @@ function counts(){const q=S.q;let p=0;DB.params.forEach(b=>b.sections.forEach(s=
  let c=0;DB.cabos.forEach(k=>k.rows.forEach(r=>{if(hit(q,k.kit,r.cor,r.cabo,r.term,r.medida))c++}));
  return{maq:DB.motores.filter(m=>hit(q,m.maquina,m.nome,m.desc,m.redutor,m.cabo,m.param,m.cv)).length,par:p,cab:c}}
 function render(){
- const n=Object.assign(counts(),{hist:''}),T=[['maq','Máquinas e motores'],['par','Parâmetros dos inversores'],['cab','Cabos']];if(S.lvl==3)T.push(['hist','Histórico']);
+ const n=Object.assign(counts(),{hist:'',fic:''}),T=[['maq','Máquinas e motores'],['fic','Ficha da máquina'],['par','Parâmetros dos inversores'],['cab','Cabos']];if(S.lvl==3)T.push(['hist','Histórico']);
  $('#nav').innerHTML=T.map(([k,l])=>`<button class="${S.tab==k?'on':''}" data-a="tab" data-t="${k}">${l}${S.q.trim()?`<small>${n[k]}</small>`:''}</button>`).join('');
  document.body.className='lv'+S.lvl;banner();$('#ed').classList.toggle('on',S.lvl>0);$('#ed').textContent=S.lvl?LV[S.lvl]+' · Sair':'Editar';
- $('#v').innerHTML=({maq:vMaq,par:vPar,cab:vCab,hist:S.lvl==3?vHist:vMaq})[S.tab]();
+ $('#v').innerHTML=({maq:vMaq,fic:vFic,par:vPar,cab:vCab,hist:S.lvl==3?vHist:vMaq})[S.tab]();
 }
 const go=(t,f)=>{S.tab=t;f&&f();render();window.scrollTo({top:0,behavior:'smooth'})};
 const ACT={
@@ -271,6 +300,9 @@ const ACT={
  addB:()=>{const id=Math.max(0,...DB.params.map(b=>b.id))+1;DB.params.push({id,title:'NOVO BLOCO '+id,motor:'',sections:[{brand:'AGEON',rows:[],notes:[]}]});S.pb=id;save();render()},
  addM:()=>{const n=Math.max(0,...DB.motores.map(m=>m.n))+1;const m={n,maquina:'NOVA MÁQUINA',nome:'',desc:'',redutor:'',cabo:'',param:''};mk(m);DB.motores.push(m);S.sel=n;S.fam='';S.fase='';S.q='';$('#q').value='';save();render()},
  delM:(d,t)=>arm(t,()=>{DB.motores=DB.motores.filter(m=>m.n!=d.n);S.sel=null;save();render()}),
+ fb:d=>{S.fb=d.b;render()},
+ goF:d=>go('fic',()=>{S.fm=d.m;S.q='';$('#q').value=''}),
+ prn:()=>window.print(),
  ghopen:()=>{if(S.lvl<3)return;$('#ghr').value=GH.repo||ghGuess();$('#ghb').value=GH.branch;$('#ghp').value=GH.path;$('#ght').value=GH.token;$('#ghm').textContent='';$('#gh').showModal()},
  ghcl:()=>$('#gh').close(),
  ghsave:()=>{ghRead();$('#ghm').textContent='Configuração salva neste tablet.'},
