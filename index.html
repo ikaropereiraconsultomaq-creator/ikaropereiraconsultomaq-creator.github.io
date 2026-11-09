@@ -84,12 +84,14 @@ const norm=s=>nz(s).replace(/\s+/g,' ').trim();
 
 /* ---------- Parâmetros ---------- */
 function refList(br){const m=new Map();DB.params.forEach(b=>b.sections.forEach(s=>{if(s.brand==br)s.rows.forEach(r=>{const k=r[0]+'|'+r[1];if(r[0]&&!m.has(k))m.set(k,[r[0],r[1],r[2]])})}));return[...m.values()].sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'pt',{numeric:true}))}
+function brandsAll(){return[...new Set(DB.params.flatMap(b=>b.sections.map(s=>s.brand)))]}
 function pBlock(b){
  const e=S.edit;const si=Math.min(S.br[b.id]||0,Math.max(b.sections.length-1,0));const s=b.sections[si];
  let h=`<div class="card"><h3>${e?inp('b|'+b.id+'|title',b.title):esc(b.title)}</h3>`;
  h+=e?`<div class="f" style="margin-bottom:8px"><label>Motor/redutor</label>${inp('b|'+b.id+'|motor',b.motor)}</div>`:(b.motor?`<div class="mu" style="margin-bottom:8px">${esc(b.motor)}</div>`:'');
  h+=b.sections.map((x,i)=>`<span class="chip ${i==si?'on':''}" data-a="br" data-id="${b.id}" data-i="${i}">${esc(x.brand)}</span>`).join('');
- if(e)h+=` <select id="nb" class="chip">${['AGEON','MOTRONICS','DELTA','POLICOMP','SCHMERSAL','AGEON YF50'].map(x=>`<option>${x}</option>`).join('')}</select><button class="btn s" data-a="addS" data-id="${b.id}">+ marca</button>`+(s?` <span class="mu">Posição da marca:</span>${arr('s|'+b.id,si,b.sections.length)}`:'');
+ if(e)h+=` <select id="nb" class="chip">${brandsAll().filter(x=>!b.sections.some(s=>s.brand==x)).map(x=>`<option>${esc(x)}</option>`).join('')}<option value="__new">+ Novo inversor…</option></select><input id="nbn" placeholder="Nome do inversor" autocomplete="off" style="display:${brandsAll().filter(x=>!b.sections.some(s=>s.brand==x)).length?'none':''};width:180px"><button class="btn s" data-a="addS" data-id="${b.id}">+ marca</button>`+(s?` <span class="mu">Posição da marca:</span>${arr('s|'+b.id,si,b.sections.length)}`:'');
+ if(e&&s){const src=DB.params.filter(x=>x.id!=b.id&&x.sections.some(y=>y.brand==s.brand));h+=`<div class="bar" style="margin-top:8px"><span class="mu">Copiar ${esc(s.brand)} de:</span><select id="cpS" class="chip"><option value="">escolher bloco…</option>${src.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('')}</select><button class="btn s" data-a="cpS" data-id="${b.id}" data-s="${si}">Copiar parâmetros</button><span class="mu">${s.rows.length?'substitui os parâmetros atuais':''}</span></div>`}
  if(!s)return h+`<div class="empty">Sem parâmetros cadastrados.</div></div>`;
  h+=`<div class="tw" style="margin-top:8px"><table><tr><th>Parâmetro</th><th>Função</th><th>Valor</th>${e?'<th></th>':''}</tr>`;
  h+=s.rows.map((r,i)=>`<tr>${[0,1,2].map(c=>`<td class="${c==2?'v':''}">${e?inp(`p|${b.id}|${si}|${i}|${c}`,r[c]):esc(r[c])}</td>`).join('')}${e?`<td style="white-space:nowrap"><button class="btn s" data-a="mv" data-t="p|${b.id}|${si}" data-i="${i}" data-d="-1">▲</button><button class="btn s" data-a="mv" data-t="p|${b.id}|${si}" data-i="${i}" data-d="1">▼</button><button class="btn s d" data-a="delR" data-id="${b.id}" data-s="${si}" data-i="${i}">×</button></td>`:''}</tr>`).join('');
@@ -279,29 +281,35 @@ function banner(){let h='';
 function counts(){const q=S.q;let p=0;DB.params.forEach(b=>b.sections.forEach(s=>s.rows.forEach(r=>{if(hit(q,b.title,s.brand,r[0],r[1],r[2]))p++})));
  let c=0;DB.cabos.forEach(k=>k.rows.forEach(r=>{if(hit(q,k.kit,r.cor,r.cabo,r.term,r.medida))c++}));
  return{maq:DB.motores.filter(m=>hit(q,m.maquina,m.nome,m.desc,m.redutor,m.cabo,m.param,m.cv)).length,par:p,cab:c}}
-function render(){
+function render0(){
  const n=Object.assign(counts(),{hist:'',fic:''}),T=[['maq','Máquinas e motores'],['fic','Ficha da máquina'],['par','Parâmetros dos inversores'],['cab','Cabos']];if(S.lvl==3)T.push(['hist','Histórico']);
  $('#nav').innerHTML=T.map(([k,l])=>`<button class="${S.tab==k?'on':''}" data-a="tab" data-t="${k}">${l}${S.q.trim()?`<small>${n[k]}</small>`:''}</button>`).join('');
  document.body.className='lv'+S.lvl;banner();$('#ed').classList.toggle('on',S.lvl>0);$('#ed').textContent=S.lvl?LV[S.lvl]+' · Sair':'Editar';
  $('#v').innerHTML=({maq:vMaq,fic:vFic,par:vPar,cab:vCab,hist:S.lvl==3?vHist:vMaq})[S.tab]();
 }
-const go=(t,f)=>{S.tab=t;f&&f();render();window.scrollTo({top:0,behavior:'smooth'})};
+function render(){
+ const y=window.scrollY,sk=document.querySelector('#v .sticky'),key=e=>e&&(e.querySelector('h3,b')||{}).textContent,k1=key(sk),st=sk?sk.scrollTop:0;
+ render0();
+ window.scrollTo({top:y,behavior:'instant'});
+ const s2=document.querySelector('#v .sticky');if(s2&&k1&&key(s2)===k1)s2.scrollTop=st}
+const go=(t,f,top)=>{const same=S.tab==t;S.tab=t;f&&f();render();if(!same||top)window.scrollTo({top:0,behavior:'smooth'});else if(innerWidth<960){const p=document.querySelector('#v .sticky');if(p)setTimeout(()=>p.scrollIntoView({behavior:'smooth',block:'start'}),30)}};
 const ACT={
- tab:d=>{S.tab=d.t;render()},edit:()=>{if(S.lvl)lock();else openPin()},k:d=>pinKey(d.d),pcl:()=>$('#pin').close(),pwcl:()=>$('#pw').close(),pins:()=>{if(S.lvl==3)$('#pw').showModal()},
+ tab:d=>{S.tab=d.t;render();window.scrollTo(0,0)},edit:()=>{if(S.lvl)lock();else openPin()},k:d=>pinKey(d.d),pcl:()=>$('#pin').close(),pwcl:()=>$('#pw').close(),pins:()=>{if(S.lvl==3)$('#pw').showModal()},
  undo1:()=>undo(1),redo1:()=>redo(),undoTo:(d,t)=>arm(t,()=>undo(DB.log.length-+d.i)),
  psave:()=>{if(S.lvl<3)return;const v=[1,2,3].map(l=>$('#pw'+l).value.trim()),m=$('#pm2');if(v.some(x=>x&&!/^\d{4}$/.test(x))){m.textContent='Use exatamente 4 números.';return}const nh=AUTH.h.slice();v.forEach((x,i)=>{if(x)nh[i]=hp(x,i+1)});if(v.some((x,i)=>x&&[1,2,3].some(l=>l!=i+1&&(v[l-1]?v[l-1]===x:nh[l-1]===hp(x,l))))){m.textContent='Cada nível precisa de uma senha diferente.';return}AUTH={h:nh};try{localStorage.setItem('ele_auth',JSON.stringify(AUTH))}catch(e){}[1,2,3].forEach(l=>$('#pw'+l).value='');aud('Trocou senhas');persist();m.textContent='Senhas atualizadas.'},
  sel:d=>{S.sel=+d.n;render();if(innerWidth<960)setTimeout(()=>document.querySelector('.sticky').scrollIntoView({behavior:'smooth'}),30)},
  goM:d=>go('maq',()=>{S.sel=+d.n;S.fam='';S.fase='';S.q=''; $('#q').value=''}),
- goP:d=>go('par',()=>{S.pb=+d.id;if(d.i!=null)S.br[d.id]=+d.i;S.q='';$('#q').value=''}),
+ goP:d=>{const fromSearch=!!S.q.trim();go('par',()=>{S.pb=+d.id;if(d.i!=null)S.br[d.id]=+d.i;S.q='';$('#q').value=''},fromSearch)},
  goK:d=>go('cab',()=>{S.kit=+d.i}),
  br:d=>{S.br[d.id]=+d.i;render()},
- addS:(d)=>{const b=blk(d.id);b.sections.push({brand:$('#nb').value,rows:[],notes:[]});S.br[b.id]=b.sections.length-1;save();render()},
+ addS:d=>{const b=blk(d.id);let n=$('#nb').value;if(n=='__new')n=($('#nbn').value||'').trim().toUpperCase();if(!n)return;const i=b.sections.findIndex(s=>s.brand==n);if(i<0){b.sections.push({brand:n,rows:[],notes:[]});S.br[b.id]=b.sections.length-1;save()}else S.br[b.id]=i;render()},
  addR:d=>{blk(d.id).sections[+d.s].rows.push(['','','']);save();render()},
  delR:(d,t)=>arm(t,()=>{blk(d.id).sections[+d.s].rows.splice(+d.i,1);save();render()}),
  addB:()=>{const id=Math.max(0,...DB.params.map(b=>b.id))+1;DB.params.push({id,title:'NOVO BLOCO '+id,motor:'',sections:[{brand:'AGEON',rows:[],notes:[]}]});S.pb=id;save();render()},
  addM:()=>{const n=Math.max(0,...DB.motores.map(m=>m.n))+1;const m={n,maquina:'NOVA MÁQUINA',nome:'',desc:'',redutor:'',cabo:'',param:''};mk(m);DB.motores.push(m);S.sel=n;S.fam='';S.fase='';S.q='';$('#q').value='';save();render()},
  delM:(d,t)=>arm(t,()=>{DB.motores=DB.motores.filter(m=>m.n!=d.n);S.sel=null;save();render()}),
  unk:d=>{DB.motores.filter(x=>x.maquina==S.fm).forEach(x=>{x.kits=(x.kits||[]).filter(u=>u!=d.u)});save();render()},
+ cpS:(d,t)=>{const b=blk(d.id),s=b.sections[+d.s],sid=$('#cpS')&&$('#cpS').value;if(!s||!sid)return;const fazer=()=>{const x=blk(sid).sections.find(y=>y.brand==s.brand);if(!x)return;s.rows=JSON.parse(JSON.stringify(x.rows));s.notes=JSON.parse(JSON.stringify(x.notes||[]));save();render()};if(s.rows.length)arm(t,fazer);else fazer()},
  fb:d=>{S.fb=d.b;render()},
  goF:d=>go('fic',()=>{S.fm=d.m;S.q='';$('#q').value=''}),
  prn:()=>window.print(),
@@ -350,6 +358,7 @@ document.addEventListener('change',e=>{
  re=true}
  else if(p[0]=='k'){DB.cabos[p[1]].kit=v;re=true}
  save();if(re)render()});
+document.addEventListener('change',e=>{if(e.target.id=='nb'){const i=$('#nbn');if(i)i.style.display=e.target.value=='__new'?'':'none'}});
 $('#q').addEventListener('input',e=>{S.q=e.target.value;render()});
 document.addEventListener('keydown',e=>{if(e.key=='/'&&document.activeElement.tagName!='INPUT'&&document.activeElement.tagName!='TEXTAREA'){e.preventDefault();$('#q').focus()}});
 init();$('#v').innerHTML='<div class="empty">Carregando a versão mestra…</div>';
